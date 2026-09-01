@@ -17,7 +17,7 @@ plugin-omarchy:
                 omarchy: args
         plan:
             - check: the omarchy verb dispatches and reports the installed version
-              id: omarchy-verb-dispatches
+              id: omarchy-version
               context:
                 - runtime
               omarchy:
