@@ -24,3 +24,11 @@ plugin-omarchy:
                   args: version
               stdout:
                 - matches: '^[0-9]+.[0-9]+.[0-9]+'
+            - check: the omarchy verb reports the shell status
+              id: omarchy-debug
+              context:
+                - runtime
+              omarchy:
+                  args: debug --no-sudo --print
+              stdout:
+                  - contains: Omarchy
