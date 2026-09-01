@@ -1,0 +1,34 @@
+plugin-omarchy:
+    candy:
+        version: 2026.244.1400
+        description: |-
+            The omarchy CLI surface as a charly check verb. Dispatches the omarchy
+            command center (version, debug, capture, lock, theme, audio, bar, battery,
+            bluetooth, brightness, channel, clipboard, cmd, config, default, dev,
+            font, menu, migrate, network, plugin, power, system, theme, update,
+            upload, voxtype, weather, webapp, windows, and more) to the guest over
+            the executor reverse channel, so a check bed can assert and drive the
+            installed Omarchy's own tooling — the same commands the Omarchy menu
+            and hotkeys use.
+        plugin:
+            providers: [verb:omarchy]
+            source: github.com/opencharly/plugin-omarchy/candy/plugin-omarchy
+            primary:
+                omarchy: args
+        plan:
+            - check: the omarchy verb dispatches and reports the installed version
+              id: omarchy-version
+              context:
+                - runtime
+              omarchy:
+                  args: version
+              stdout:
+                - matches: '^[0-9]+.[0-9]+.[0-9]+'
+            - check: the omarchy verb reports the shell status
+              id: omarchy-debug
+              context:
+                - runtime
+              omarchy:
+                  args: debug --no-sudo --print
+              stdout:
+                  - contains: Omarchy
