@@ -69,6 +69,6 @@ const InputDefs = "#OmarchyInput"
 // NewMeta returns the plugin meta server (calver + capability + schema).
 func NewMeta() pb.PluginMetaServer {
 	return sdk.NewMeta("2026.244.1400", []sdk.ProvidedCapability{
-		{Class: "verb", Word: "omarchy", InputDef: InputDefs},
+		{Class: "verb", Word: "omarchy", InputDef: InputDefs, Primary: "args"},
 	}, SchemaFS)
 }
