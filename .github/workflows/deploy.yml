@@ -1,0 +1,34 @@
+# Gate the candy manifest against the pinned charly.
+name: candy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: candy-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Fetch the pinned charly source (CI-time temp checkout)
+        run: |
+          git clone --depth 1 --branch v2026.238.1242 https://github.com/opencharly/charly.git /tmp/charly
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: /tmp/charly/charly/go.mod
+          cache-dependency-path: /tmp/charly/charly/go.sum
+
+      - name: Validate the candy manifest
+        run: |
+          cd /tmp/charly && go run ./charly box validate --dir /home/runner/work/plugin-omarchy/plugin-omarchy
