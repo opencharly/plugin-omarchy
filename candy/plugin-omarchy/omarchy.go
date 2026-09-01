@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/opencharly/plugin-omarchy/candy/plugin-omarchy/params"
 	"github.com/opencharly/sdk"
 	"github.com/opencharly/sdk/kit"
 	pb "github.com/opencharly/spec/proto"
@@ -33,9 +34,7 @@ func (v *omarchyVerb) Reserved() string { return "omarchy" }
 
 // RunVerb runs `omarchy <args>` in the venue and returns the result.
 func (v *omarchyVerb) RunVerb(ctx context.Context, cc kit.CheckContext, op *spec.Op) spec.CheckVerbResult {
-	var in struct {
-		Args string `json:"args"`
-	}
+	var in params.OmarchyInput
 	raw, merr := json.Marshal(op.PluginInput)
 	if merr != nil {
 		return spec.CheckVerbResult{Status: spec.StatusFail, Message: "omarchy: marshal input: " + merr.Error()}
