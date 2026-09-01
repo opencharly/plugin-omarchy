@@ -1,3 +1,0 @@
-#OmarchyInput: {
-	args: string
-}
