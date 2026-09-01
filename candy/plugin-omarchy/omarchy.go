@@ -46,7 +46,7 @@ func (v *omarchyVerb) RunVerb(ctx context.Context, cc kit.CheckContext, op *spec
 	if strings.TrimSpace(in.Args) == "" {
 		return spec.CheckVerbResult{Status: spec.StatusFail, Message: "omarchy: args is required (e.g. version, debug, capture screenshot fullscreen save)"}
 	}
-	stdout, stderr, exit, err := cc.Exec().RunCapture(ctx, "omarchy "+in.Args)
+	stdout, stderr, exit, err := cc.Exec().RunCapture(ctx, "export OMARCHY_PATH=/usr/share/omarchy; omarchy "+in.Args)
 	if err != nil {
 		return spec.CheckVerbResult{Status: spec.StatusFail, Message: "omarchy: exec: " + err.Error()}
 	}
