@@ -18,6 +18,7 @@ import (
 	"context"
 	"embed"
 	"encoding/json"
+	"fmt"
 	"strings"
 
 	"github.com/opencharly/plugin-omarchy/candy/plugin-omarchy/params"
@@ -37,7 +38,73 @@ type omarchyVerb struct{}
 // Reserved is the verb word: 'omarchy: <args>'.
 func (v *omarchyVerb) Reserved() string { return "omarchy" }
 
-// RunVerb runs 'omarchy <args>' in the venue and returns the verdict.
+// omarchyCommand maps the method enum to the exact argv. The shell-ipc
+// methods run the omarchy-shell IPC (the SAME surface the menu and hotkeys
+// use); the cli-read methods run the omarchy-* bin commands; "cli" (default)
+// runs the omarchy command center with args.
+func omarchyCommand(in params.OmarchyInput) (string, error) {
+	switch in.Method {
+	case "", "cli":
+		if strings.TrimSpace(in.Args) == "" {
+			return "", fmt.Errorf("args is required for method cli (e.g. version, debug, capture screenshot fullscreen save)")
+		}
+		return "omarchy " + in.Args, nil
+	case "shell-ping":
+		return "omarchy-shell shell ping", nil
+	case "shell-summon":
+		if strings.TrimSpace(in.Plugin) == "" {
+			return "", fmt.Errorf("plugin is required for method shell-summon")
+		}
+		if strings.TrimSpace(in.Payload) != "" {
+			return "omarchy-shell shell summon " + in.Plugin + " '" + in.Payload + "'", nil
+		}
+		return "omarchy-shell shell summon " + in.Plugin, nil
+	case "shell-hide":
+		if strings.TrimSpace(in.Plugin) == "" {
+			return "", fmt.Errorf("plugin is required for method shell-hide")
+		}
+		return "omarchy-shell shell hide " + in.Plugin, nil
+	case "shell-list-plugins":
+		return "omarchy-shell shell listPlugins", nil
+	case "shell-reload-config":
+		return "omarchy-shell shell reloadConfig", nil
+	case "shell-notifications-dismiss":
+		return "omarchy-shell notifications dismissAll", nil
+	case "shell-notifications-send":
+		if strings.TrimSpace(in.Title) == "" {
+			return "", fmt.Errorf("title is required for method shell-notifications-send")
+		}
+		return "omarchy-notification-send " + in.Title + " " + in.Text, nil
+	case "channel-current":
+		return "omarchy-channel-current", nil
+	case "default-browser":
+		return "omarchy-default-browser", nil
+	case "default-terminal":
+		return "omarchy-default-terminal", nil
+	case "default-editor":
+		return "omarchy-default-editor", nil
+	case "theme-current":
+		return "omarchy-theme-current", nil
+	case "theme-bg-current":
+		return "omarchy-theme-bg-current", nil
+	case "font-current":
+		return "omarchy-font-current", nil
+	case "weather-location":
+		if strings.TrimSpace(in.Args) == "" {
+			return "", fmt.Errorf("args is required for method weather-location (e.g. --set San Francisco 37.7749,-122.4194)")
+		}
+		return "omarchy-weather-location " + in.Args, nil
+	case "version":
+		return "omarchy version", nil
+	default:
+		return "", fmt.Errorf("unknown method %q", in.Method)
+	}
+}
+
+// RunVerb runs the omarchy surface in the venue and returns the verdict.
+// The method enum dispatches: "cli" (default) runs `omarchy <args>`; the
+// shell-ipc methods run the omarchy-shell IPC; the cli-read methods run the
+// omarchy-* bin commands. All run with OMARCHY_PATH set (the installed tree).
 func (v *omarchyVerb) RunVerb(ctx context.Context, cc kit.CheckContext, op *spec.Op) kit.Result {
 	var in params.OmarchyInput
 	raw, merr := json.Marshal(op.PluginInput)
@@ -47,10 +114,11 @@ func (v *omarchyVerb) RunVerb(ctx context.Context, cc kit.CheckContext, op *spec
 	if err := json.Unmarshal(raw, &in); err != nil {
 		return kit.Failf("omarchy: decode input: %s", err.Error())
 	}
-	if strings.TrimSpace(in.Args) == "" {
-		return kit.Failf("omarchy: args is required (e.g. version, debug, capture screenshot fullscreen save)")
+	cmd, err := omarchyCommand(in)
+	if err != nil {
+		return kit.Failf("omarchy: %s", err.Error())
 	}
-	stdout, stderr, exitCode, err := cc.Exec().RunCapture(ctx, "export OMARCHY_PATH=/usr/share/omarchy; omarchy "+in.Args)
+	stdout, stderr, exitCode, err := cc.Exec().RunCapture(ctx, "export OMARCHY_PATH=/usr/share/omarchy; "+cmd)
 	if err != nil {
 		return kit.Failf("omarchy: exec: %s", err.Error())
 	}

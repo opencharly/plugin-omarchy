@@ -41,3 +41,19 @@ plugin-omarchy:
                   expect_non_zero: true
               stderr:
                   - contains: Unknown Omarchy command
+            - check: the omarchy verb pings the shell IPC (the acceptance surface)
+              id: omarchy-shell-ping
+              context:
+                - runtime
+              omarchy:
+                  method: shell-ping
+              stdout:
+                - contains: ok
+            - check: the omarchy verb reads the active channel (the acceptance surface)
+              id: omarchy-channel-current
+              context:
+                - runtime
+              omarchy:
+                  method: channel-current
+              stdout:
+                - matches: '.+'

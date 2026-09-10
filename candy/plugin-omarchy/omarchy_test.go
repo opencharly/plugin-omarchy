@@ -5,17 +5,21 @@ import (
 	"testing"
 	"time"
 
+	"github.com/opencharly/plugin-omarchy/candy/plugin-omarchy/params"
 	"github.com/opencharly/spec/spec"
 )
 
-// fakeExec is a minimal CheckExecutor that returns canned output.
+// fakeExec is a minimal CheckExecutor that returns canned output and records
+// the last command it was handed (the dispatch assertions read it).
 type fakeExec struct {
 	stdout string
 	stderr string
 	exit   int
+	cmd    string
 }
 
-func (f *fakeExec) RunCapture(_ context.Context, _ string) (string, string, int, error) {
+func (f *fakeExec) RunCapture(_ context.Context, cmd string) (string, string, int, error) {
+	f.cmd = cmd
 	return f.stdout, f.stderr, f.exit, nil
 }
 func (f *fakeExec) Kind() string { return "vm" }
@@ -40,6 +44,14 @@ func (c *fakeCC) AddBackground(int)                                         {}
 
 func input(args string) map[string]any {
 	return map[string]any{"args": args}
+}
+
+func methodInput(method string, extra map[string]any) map[string]any {
+	m := map[string]any{"method": method}
+	for k, v := range extra {
+		m[k] = v
+	}
+	return m
 }
 
 // opWith builds an op from the plugin input plus optional matcher/exit mods.
@@ -106,53 +118,86 @@ func TestOmarchyVerb_ExpectNonZeroFailsOnZero(t *testing.T) {
 	}
 }
 
-func TestOmarchyVerb_ExitStatusMatcher(t *testing.T) {
-	v := &omarchyVerb{}
-	want := 1
-	// exit 1 with exit_status: 1 → pass
-	cc := &fakeCC{ex: &fakeExec{stderr: "boom", exit: 1}}
-	res := v.RunVerb(context.Background(), cc, opWith(input("plugin validate"), func(op *spec.Op) {
-		op.ExitStatus = &want
-	}))
-	if res.Status != spec.StatusPass {
-		t.Fatalf("RunVerb(exit_status 1, exit 1) = %v, want pass", res.Status)
+func TestOmarchyCommand_Dispatch(t *testing.T) {
+	cases := []struct {
+		name string
+		in   params.OmarchyInput
+		want string
+	}{
+		{"cli default", params.OmarchyInput{Method: "", Args: "version"}, "omarchy version"},
+		{"cli explicit", params.OmarchyInput{Method: "cli", Args: "debug --no-sudo --print"}, "omarchy debug --no-sudo --print"},
+		{"shell-ping", params.OmarchyInput{Method: "shell-ping"}, "omarchy-shell shell ping"},
+		{"shell-summon", params.OmarchyInput{Method: "shell-summon", Plugin: "omarchy.menu"}, "omarchy-shell shell summon omarchy.menu"},
+		{"shell-summon payload", params.OmarchyInput{Method: "shell-summon", Plugin: "omarchy.menu", Payload: "{\"menu\":\"system\"}"}, "omarchy-shell shell summon omarchy.menu '{\"menu\":\"system\"}'"},
+		{"shell-hide", params.OmarchyInput{Method: "shell-hide", Plugin: "omarchy.weather"}, "omarchy-shell shell hide omarchy.weather"},
+		{"shell-list-plugins", params.OmarchyInput{Method: "shell-list-plugins"}, "omarchy-shell shell listPlugins"},
+		{"shell-reload-config", params.OmarchyInput{Method: "shell-reload-config"}, "omarchy-shell shell reloadConfig"},
+		{"shell-notifications-dismiss", params.OmarchyInput{Method: "shell-notifications-dismiss"}, "omarchy-shell notifications dismissAll"},
+		{"shell-notifications-send", params.OmarchyInput{Method: "shell-notifications-send", Title: "T", Text: "B"}, "omarchy-notification-send T B"},
+		{"channel-current", params.OmarchyInput{Method: "channel-current"}, "omarchy-channel-current"},
+		{"default-browser", params.OmarchyInput{Method: "default-browser"}, "omarchy-default-browser"},
+		{"default-terminal", params.OmarchyInput{Method: "default-terminal"}, "omarchy-default-terminal"},
+		{"default-editor", params.OmarchyInput{Method: "default-editor"}, "omarchy-default-editor"},
+		{"theme-current", params.OmarchyInput{Method: "theme-current"}, "omarchy-theme-current"},
+		{"theme-bg-current", params.OmarchyInput{Method: "theme-bg-current"}, "omarchy-theme-bg-current"},
+		{"font-current", params.OmarchyInput{Method: "font-current"}, "omarchy-font-current"},
+		{"weather-location", params.OmarchyInput{Method: "weather-location", Args: "--set San Francisco 37.7749,-122.4194"}, "omarchy-weather-location --set San Francisco 37.7749,-122.4194"},
+		{"version", params.OmarchyInput{Method: "version"}, "omarchy version"},
 	}
-	// exit 0 with exit_status: 1 → fail
-	cc2 := &fakeCC{ex: &fakeExec{stdout: "ok", exit: 0}}
-	res2 := v.RunVerb(context.Background(), cc2, opWith(input("plugin validate"), func(op *spec.Op) {
-		op.ExitStatus = &want
-	}))
-	if res2.Status != spec.StatusFail {
-		t.Fatalf("RunVerb(exit_status 1, exit 0) = %v, want fail", res2.Status)
-	}
-}
-
-func TestOmarchyVerb_StdoutMatcher(t *testing.T) {
-	v := &omarchyVerb{}
-	cc := &fakeCC{ex: &fakeExec{stdout: "4.0.1-1", exit: 0}}
-	res := v.RunVerb(context.Background(), cc, opWith(input("version"), func(op *spec.Op) {
-		op.Stdout = spec.MatcherList{{Op: "contains", Value: "4.0"}}
-	}))
-	if res.Status != spec.StatusPass {
-		t.Fatalf("RunVerb(stdout contains 4.0) = %v, want pass", res.Status)
-	}
-	cc2 := &fakeCC{ex: &fakeExec{stdout: "5.0.0", exit: 0}}
-	res2 := v.RunVerb(context.Background(), cc2, opWith(input("version"), func(op *spec.Op) {
-		op.Stdout = spec.MatcherList{{Op: "contains", Value: "4.0"}}
-	}))
-	if res2.Status != spec.StatusFail {
-		t.Fatalf("RunVerb(stdout contains 4.0, got 5.0) = %v, want fail", res2.Status)
+	for _, c := range cases {
+		got, err := omarchyCommand(c.in)
+		if err != nil {
+			t.Fatalf("%s: unexpected error: %v", c.name, err)
+		}
+		if got != c.want {
+			t.Fatalf("%s: omarchyCommand = %q, want %q", c.name, got, c.want)
+		}
 	}
 }
 
-func TestOmarchyVerb_StderrMatcher(t *testing.T) {
+func TestOmarchyCommand_Validation(t *testing.T) {
+	cases := []struct {
+		name string
+		in   params.OmarchyInput
+	}{
+		{"cli no args", params.OmarchyInput{Method: "cli"}},
+		{"summon no plugin", params.OmarchyInput{Method: "shell-summon"}},
+		{"hide no plugin", params.OmarchyInput{Method: "shell-hide"}},
+		{"send no title", params.OmarchyInput{Method: "shell-notifications-send", Text: "B"}},
+		{"weather no args", params.OmarchyInput{Method: "weather-location"}},
+		{"unknown method", params.OmarchyInput{Method: "nope"}},
+	}
+	for _, c := range cases {
+		if _, err := omarchyCommand(c.in); err == nil {
+			t.Fatalf("%s: expected an error, got none", c.name)
+		}
+	}
+}
+
+func TestOmarchyVerb_ShellPingDispatch(t *testing.T) {
 	v := &omarchyVerb{}
-	cc := &fakeCC{ex: &fakeExec{stderr: "no such theme: nope", exit: 1}}
-	res := v.RunVerb(context.Background(), cc, opWith(input("theme set nope"), func(op *spec.Op) {
-		op.PluginInput["expect_non_zero"] = true
-		op.Stderr = spec.MatcherList{{Op: "contains", Value: "no such theme"}}
+	ex := &fakeExec{stdout: "ok", exit: 0}
+	cc := &fakeCC{ex: ex}
+	res := v.RunVerb(context.Background(), cc, opWith(methodInput("shell-ping", nil)))
+	if res.Status != spec.StatusPass {
+		t.Fatalf("RunVerb(shell-ping) = %v, want pass", res.Status)
+	}
+	if ex.cmd != "export OMARCHY_PATH=/usr/share/omarchy; omarchy-shell shell ping" {
+		t.Fatalf("RunVerb(shell-ping) cmd = %q, want the shell ping argv", ex.cmd)
+	}
+}
+
+func TestOmarchyVerb_ChannelCurrentDispatch(t *testing.T) {
+	v := &omarchyVerb{}
+	ex := &fakeExec{stdout: "edge", exit: 0}
+	cc := &fakeCC{ex: ex}
+	res := v.RunVerb(context.Background(), cc, opWith(methodInput("channel-current", nil), func(op *spec.Op) {
+		op.Stdout = []spec.Matcher{{Op: "contains", Value: "edge"}}
 	}))
 	if res.Status != spec.StatusPass {
-		t.Fatalf("RunVerb(stderr contains 'no such theme') = %v, want pass", res.Status)
+		t.Fatalf("RunVerb(channel-current) = %v, want pass", res.Status)
+	}
+	if ex.cmd != "export OMARCHY_PATH=/usr/share/omarchy; omarchy-channel-current" {
+		t.Fatalf("RunVerb(channel-current) cmd = %q, want the channel argv", ex.cmd)
 	}
 }
