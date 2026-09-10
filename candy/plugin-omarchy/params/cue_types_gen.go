@@ -3,7 +3,27 @@
 package params
 
 type OmarchyInput struct {
-	Args string `json:"args"`
+	// method — the omarchy surface to dispatch. "cli" (default) runs
+	// `omarchy <args>` (the command center); the shell-ipc methods run the
+	// omarchy-shell IPC (the SAME surface the menu and hotkeys use); the
+	// cli-read methods run the omarchy-* bin commands (the acceptance
+	// surfaces the beds assert).
+	Method string `json:"method"`
+
+	// args — the omarchy CLI args (method: cli) or the weather-location
+	// args (method: weather-location). Required for those two methods.
+	Args string `json:"args,omitempty"`
+
+	// plugin — the omarchy.<plugin> id for shell-summon / shell-hide.
+	Plugin string `json:"plugin,omitempty"`
+
+	// payload — the JSON payload for shell-summon (optional).
+	Payload string `json:"payload,omitempty"`
+
+	// title / text — the notification title/body for shell-notifications-send.
+	Title string `json:"title,omitempty"`
+
+	Text string `json:"text,omitempty"`
 
 	// expect_non_zero: assert the command FAILED (any non-zero exit) — the
 	// CLI-rejects-X class. Mirrors plugin-command's expect_non_zero; mutually
