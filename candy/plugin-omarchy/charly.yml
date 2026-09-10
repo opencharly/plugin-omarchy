@@ -32,8 +32,7 @@ plugin-omarchy:
                   args: debug --no-sudo --print
               stdout:
                   - contains: Omarchy
-            - check: the omarchy verb asserts the CLI's failure behavior (an unknown
-              command exits 127 — expect_non_zero, never a guessed exit code)
+            - check: the omarchy verb asserts the CLI's failure behavior (expect_non_zero)
               id: omarchy-rejects-unknown
               context:
                 - runtime
