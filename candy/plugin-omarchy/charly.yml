@@ -1,6 +1,6 @@
 plugin-omarchy:
     candy:
-        version: 2026.244.1400
+        version: 2026.253.1500
         description: |-
             The omarchy CLI surface as a charly check verb. Dispatches the omarchy
             command center (version, debug, capture, lock, theme, audio, bar, battery,
@@ -32,3 +32,13 @@ plugin-omarchy:
                   args: debug --no-sudo --print
               stdout:
                   - contains: Omarchy
+            - check: the omarchy verb asserts the CLI's failure behavior (an unknown
+              command exits 127 — expect_non_zero, never a guessed exit code)
+              id: omarchy-rejects-unknown
+              context:
+                - runtime
+              omarchy:
+                  args: definitely-not-a-command
+                  expect_non_zero: true
+              stderr:
+                  - contains: Unknown Omarchy command
