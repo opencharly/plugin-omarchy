@@ -1,6 +1,5 @@
 plugin-omarchy:
     candy:
-        version: 2026.253.1500
         description: |-
             The omarchy CLI surface as a charly check verb. Dispatches the omarchy
             command center (version, debug, capture, lock, theme, audio, bar, battery,
