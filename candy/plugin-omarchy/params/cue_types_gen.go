@@ -8,25 +8,25 @@ type OmarchyInput struct {
 	// omarchy-shell IPC (the SAME surface the menu and hotkeys use); the
 	// cli-read methods run the omarchy-* bin commands (the acceptance
 	// surfaces the beds assert).
-	Method string `json:"method"`
+	Method string `yaml:"method,omitempty" json:"method"`
 
 	// args — the omarchy CLI args (method: cli) or the weather-location
 	// args (method: weather-location). Required for those two methods.
-	Args string `json:"args,omitempty"`
+	Args string `yaml:"args,omitempty" json:"args,omitempty"`
 
 	// plugin — the omarchy.<plugin> id for shell-summon / shell-hide.
-	Plugin string `json:"plugin,omitempty"`
+	Plugin string `yaml:"plugin,omitempty" json:"plugin,omitempty"`
 
 	// payload — the JSON payload for shell-summon (optional).
-	Payload string `json:"payload,omitempty"`
+	Payload string `yaml:"payload,omitempty" json:"payload,omitempty"`
 
 	// title / text — the notification title/body for shell-notifications-send.
-	Title string `json:"title,omitempty"`
+	Title string `yaml:"title,omitempty" json:"title,omitempty"`
 
-	Text string `json:"text,omitempty"`
+	Text string `yaml:"text,omitempty" json:"text,omitempty"`
 
 	// expect_non_zero: assert the command FAILED (any non-zero exit) — the
 	// CLI-rejects-X class. Mirrors plugin-command's expect_non_zero; mutually
 	// exclusive with the step-level exit_status matcher (exact code).
-	ExpectNonZero bool `json:"expect_non_zero"`
+	ExpectNonZero bool `yaml:"expect_non_zero,omitempty" json:"expect_non_zero"`
 }
