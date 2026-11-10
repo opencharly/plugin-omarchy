@@ -4,12 +4,12 @@
 	// omarchy-shell IPC (the SAME surface the menu and hotkeys use); the
 	// cli-read methods run the omarchy-* bin commands (the acceptance
 	// surfaces the beds assert).
-	// S3: the words are rows of the `_method` table at the foot of this file and
-	// the enum below is derived from its word list, so the catalog has ONE home —
-	// a new method is one row there, and the table, the derived list and this enum
-	// cannot disagree. The `*"cli"` default stays written inline: S3 permits a
-	// literal default, and the default is a VALUE choice, not a word the table
-	// decides.
+	// S3: the words are rows of the `_method` table at the foot of the schema, and
+	// the enum this field accepts is derived from that table's word list, so the
+	// catalog has ONE home — a new method is one row there, and the table, the
+	// derived list and the enum cannot disagree. The `*"cli"` default stays written
+	// inline: S3 permits a literal default, and the default is a VALUE choice, not a
+	// word the table decides.
 	method: *"cli" | or(_methodWord)
 	// args — the omarchy CLI args (method: cli) or the weather-location
 	// args (method: weather-location). Required for those two methods.

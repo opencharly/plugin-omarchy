@@ -5,9 +5,8 @@
 # The served schema MUST stay package-less (the host splices it onto its base as
 # `base ++ plugin`; a package clause in the appended body would be a syntax
 # error). `cue exp gengotypes` can only generate from a NAMED package, so this
-# script stages a copy with the params package clause, generates from it, and the
-# generator writes cue_types_gen.go into THIS directory. A second run is a
-# byte-identical no-op.
+# script stages a copy with the params package clause and generates from that copy
+# in its own directory. A second run is a byte-identical no-op.
 #
 # This is the SAME mechanism the org's candy-validate projection check runs
 # (opencharly/.github/.github/workflows/candy-validate.yml: stage `package params`,
