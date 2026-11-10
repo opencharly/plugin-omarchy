@@ -33,9 +33,20 @@ trap 'rm -rf "$tmp"' EXIT
 
 ( cd "$tmp" && cue exp gengotypes schema.cue )
 
-[ -f "$tmp/cue_types_gen.go" ] || {
-	echo "gen.sh: cue emitted no cue_types_gen.go" >&2
+# The generator names its output from the INPUT it was handed — `cue_types_<pkg>_gen.go`
+# for a package, `cue_types_gen.go` for a single file, as the command's own help states
+# ("the package name is omitted from the filename if it is implied by the import
+# path"). This script does not depend on which: it requires that the fresh dir hold
+# EXACTLY ONE generated file and installs that one, so a change to the naming rule
+# cannot turn the guard below into a vacuous pass.
+set -- "$tmp"/cue_types*_gen.go
+if [ ! -f "$1" ]; then
+	echo "gen.sh: cue emitted no cue_types*_gen.go in its output dir" >&2
 	exit 1
-}
-gofmt -w "$tmp/cue_types_gen.go"
-mv "$tmp/cue_types_gen.go" "$here/cue_types_gen.go"
+fi
+if [ "$#" -ne 1 ]; then
+	echo "gen.sh: cue emitted $# generated files, want exactly one: $*" >&2
+	exit 1
+fi
+gofmt -w "$1"
+mv "$1" "$here/cue_types_gen.go"
