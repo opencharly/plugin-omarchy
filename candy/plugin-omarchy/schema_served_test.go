@@ -22,6 +22,7 @@ package omarchy
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"sort"
 	"testing"
 
@@ -53,15 +54,16 @@ const vocabHarness = `
 // input that uses a word from it, so the enum is exercised through the same def the
 // host validates against.
 type vocabProbe struct {
-	name string
-	use  func(word string) string
+	name  string // the key this table has in vocabHarness
+	label string // the table's own label in the schema body
+	use   func(word string) string
 }
 
 // vocabProbes covers every vocabulary table this schema carries. A new table
 // belongs in vocabHarness and here: the probe is what proves it is wired into the
 // enum an author actually meets.
 var vocabProbes = []vocabProbe{
-	{"method", func(w string) string {
+	{"method", "_method", func(w string) string {
 		return fmt.Sprintf(`{#OmarchyInput: {method: %q}}`, w)
 	}},
 }
@@ -243,6 +245,33 @@ func TestS3VocabularyTablesDriveTheirEnums(t *testing.T) {
 		}
 		if err := v.Unify(ctx.CompileString(p.use("zzz-not-a-word"))).Err(); err == nil {
 			t.Errorf("%q accepts a non-word — the enum is not the table", p.name)
+		}
+	}
+}
+
+// TestVocabularyTablesNameTheirOwner pins the §3.1 ownership tag: each table carries
+// `@vocab(<the plugin's own word>)`, so a table copied out of another plugin's schema
+// cannot pass as this one's, and the SERVED BODY itself carries the answer to "whose
+// words are these?" — not a claim made only in the PR body.
+//
+// The assertion is made on the served TEXT because a `@vocab` is a compile-time
+// annotation: it does not survive a reference, so it cannot be read through the
+// harness's `tables.<name>` lift, and it is absent from the compiled value. It is the
+// attribute and ONLY the attribute that is read as text here — a union's textual form
+// is what this file exists to stop anyone reading, and no word set is counted from it.
+func TestVocabularyTablesNameTheirOwner(t *testing.T) {
+	caps, err := NewMeta().Describe(context.Background(), &pb.Empty{})
+	if err != nil {
+		t.Fatalf("Describe: %v", err)
+	}
+	body := caps.GetSchemaCue()
+	tags := regexp.MustCompile(`@vocab\(([^)]*)\)`).FindAllStringSubmatch(body, -1)
+	if len(tags) != len(vocabProbes) {
+		t.Fatalf("served body carries %d @vocab tags for %d vocabulary tables — every table is tagged exactly once", len(tags), len(vocabProbes))
+	}
+	for _, tag := range tags {
+		if tag[1] != "omarchy" {
+			t.Errorf("a vocabulary table is tagged @vocab(%s), want @vocab(omarchy) — the table claims an owner that is not this plugin", tag[1])
 		}
 	}
 }
